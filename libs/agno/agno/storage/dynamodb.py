@@ -1,5 +1,5 @@
 import time
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional
 
@@ -19,6 +19,19 @@ except ImportError:
     raise ImportError("`boto3` not installed. Please install using `pip install boto3`.")
 
 
+@dataclass
+class DynamoDbProvisionedThroughput:
+    read_capacity_units: int = 5
+    write_capacity_units: int = 5
+
+    @property
+    def to_dict(self):
+        return {
+            "ReadCapacityUnits": self.read_capacity_units,
+            "WriteCapacityUnits": self.write_capacity_units,
+        }
+
+
 class DynamoDbStorage(Storage):
     def __init__(
         self,
@@ -30,6 +43,7 @@ class DynamoDbStorage(Storage):
         endpoint_url: Optional[str] = None,
         create_table_if_not_exists: bool = True,
         mode: Optional[Literal["agent", "team", "workflow", "workflow_v2"]] = "agent",
+        provisioned_throughput: Optional[DynamoDbProvisionedThroughput] = None,
     ):
         """
         Initialize the DynamoDbStorage.
@@ -43,6 +57,7 @@ class DynamoDbStorage(Storage):
             endpoint_url (Optional[str]): The complete URL to use for the constructed client.
             create_table_if_not_exists (bool): Whether to create the table if it does not exist.
             mode (Optional[Literal["agent", "team", "workflow", "workflow_v2"]]): The mode of the storage.
+            provisioned_throughput (Optional[DynamoDbProvisionedThroughput]): Optionally provide custom provisioned_throughput, by default it is set to 5 units for read and write.
         """
         super().__init__(mode)
         self.table_name = table_name
@@ -52,6 +67,7 @@ class DynamoDbStorage(Storage):
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
         self.create_table_if_not_exists = create_table_if_not_exists
+        self.provisioned_throughput = provisioned_throughput
 
         # Create session using profile name if provided
         if self.profile_name:
@@ -96,6 +112,11 @@ class DynamoDbStorage(Storage):
         """
         Create the DynamoDB table if it does not exist.
         """
+        if self.provisioned_throughput:
+            provisioned_throughput = self.provisioned_throughput.to_dict
+        else:
+            provisioned_throughput = DynamoDbProvisionedThroughput().to_dict
+
         try:
             # Check if table exists
             self.dynamodb.meta.client.describe_table(TableName=self.table_name)
@@ -141,10 +162,7 @@ class DynamoDbStorage(Storage):
                             {"AttributeName": "created_at", "KeyType": "RANGE"},
                         ],
                         "Projection": {"ProjectionType": "ALL"},
-                        "ProvisionedThroughput": {
-                            "ReadCapacityUnits": 5,
-                            "WriteCapacityUnits": 5,
-                        },
+                        "ProvisionedThroughput": provisioned_throughput,
                     }
                 ]
                 if self.mode == "agent":
@@ -156,10 +174,7 @@ class DynamoDbStorage(Storage):
                                 {"AttributeName": "created_at", "KeyType": "RANGE"},
                             ],
                             "Projection": {"ProjectionType": "ALL"},
-                            "ProvisionedThroughput": {
-                                "ReadCapacityUnits": 5,
-                                "WriteCapacityUnits": 5,
-                            },
+                            "ProvisionedThroughput": provisioned_throughput,
                         }
                     )
                 elif self.mode == "team":
@@ -171,10 +186,7 @@ class DynamoDbStorage(Storage):
                                 {"AttributeName": "created_at", "KeyType": "RANGE"},
                             ],
                             "Projection": {"ProjectionType": "ALL"},
-                            "ProvisionedThroughput": {
-                                "ReadCapacityUnits": 5,
-                                "WriteCapacityUnits": 5,
-                            },
+                            "ProvisionedThroughput": provisioned_throughput,
                         }
                     )
                 elif self.mode == "workflow":
@@ -186,10 +198,7 @@ class DynamoDbStorage(Storage):
                                 {"AttributeName": "created_at", "KeyType": "RANGE"},
                             ],
                             "Projection": {"ProjectionType": "ALL"},
-                            "ProvisionedThroughput": {
-                                "ReadCapacityUnits": 5,
-                                "WriteCapacityUnits": 5,
-                            },
+                            "ProvisionedThroughput": provisioned_throughput,
                         }
                     )
                 elif self.mode == "workflow_v2":
@@ -201,10 +210,7 @@ class DynamoDbStorage(Storage):
                                 {"AttributeName": "created_at", "KeyType": "RANGE"},
                             ],
                             "Projection": {"ProjectionType": "ALL"},
-                            "ProvisionedThroughput": {
-                                "ReadCapacityUnits": 5,
-                                "WriteCapacityUnits": 5,
-                            },
+                            "ProvisionedThroughput": provisioned_throughput,
                         }
                     )
                 # Create the table
@@ -213,7 +219,7 @@ class DynamoDbStorage(Storage):
                     KeySchema=[{"AttributeName": "session_id", "KeyType": "HASH"}],
                     AttributeDefinitions=attribute_definitions,
                     GlobalSecondaryIndexes=secondary_indexes,
-                    ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
+                    ProvisionedThroughput=provisioned_throughput,
                 )
                 # Wait until the table exists.
                 self.table.wait_until_exists()
