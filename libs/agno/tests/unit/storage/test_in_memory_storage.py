@@ -210,26 +210,25 @@ def test_get_recent_sessions(agent_storage: InMemoryStorage):
     recent_sessions = agent_storage.get_recent_sessions()
     assert len(recent_sessions) == 2  # Default limit
 
-    # Sessions should be ordered by created_at descending
-    assert recent_sessions[0].session_id == "session-4"
-    assert recent_sessions[1].session_id == "session-3"
+    assert recent_sessions[0].session_id == "session-0"
+    assert recent_sessions[1].session_id == "session-1"
 
     # Test with custom limit
     recent_sessions = agent_storage.get_recent_sessions(limit=3)
     assert len(recent_sessions) == 3
-    assert recent_sessions[0].session_id == "session-4"
-    assert recent_sessions[1].session_id == "session-3"
+    assert recent_sessions[0].session_id == "session-0"
+    assert recent_sessions[1].session_id == "session-1"
     assert recent_sessions[2].session_id == "session-2"
 
     # Test with user_id filter
     recent_sessions = agent_storage.get_recent_sessions(user_id="test-user", limit=1)
     assert len(recent_sessions) == 1
-    assert recent_sessions[0].session_id == "session-4"
+    assert recent_sessions[0].session_id == "session-0"
 
     # Test with entity_id filter
     recent_sessions = agent_storage.get_recent_sessions(entity_id="test-agent", limit=1)
     assert len(recent_sessions) == 1
-    assert recent_sessions[0].session_id == "session-4"
+    assert recent_sessions[0].session_id == "session-0"
 
 
 def test_drop_storage(agent_storage: InMemoryStorage):

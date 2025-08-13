@@ -94,4 +94,4 @@ fastapi_app = FastAPIApp(
 app = fastapi_app.get_app()
 
 if __name__ == "__main__":
-    fastapi_app.serve(app="study_friend:app", port=8001,workers=4, reload=True)
+    fastapi_app.serve(app="study_friend:app", port=8001, workers=4, reload=True)
